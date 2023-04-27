@@ -49,6 +49,14 @@ func (l *LevelDB) PutString(key string, value string) error {
 	return l.Put([]byte(key), []byte(value))
 }
 
+func (l *LevelDB) Has(key []byte) (bool, error) {
+	return l.db.Has(key, nil)
+}
+
+func (l *LevelDB) HasString(key string) (bool, error) {
+	return l.Has([]byte(key))
+}
+
 func (l *LevelDB) Delete(key []byte) error {
 	return l.db.Delete(key, nil)
 }

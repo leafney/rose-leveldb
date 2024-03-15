@@ -91,6 +91,21 @@ type CacheType struct {
 	Expire  int64  `json:"expire"`
 }
 
+func (l *LevelDB) XSet(key string, value string) error {
+	cache := CacheType{
+		Data:    []byte(value),
+		Created: time.Now().Unix(),
+		Expire:  0,
+	}
+
+	jsonStr, err := json.Marshal(cache)
+	if err != nil {
+		return err
+	}
+
+	return l.db.Put([]byte(key), jsonStr, nil)
+}
+
 func (l *LevelDB) XSetEx(key string, value string, expires int64) error {
 	cache := CacheType{
 		Data:    []byte(value),

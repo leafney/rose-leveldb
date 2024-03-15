@@ -31,13 +31,13 @@ func TestNewLevelDB(t *testing.T) {
 
 	//	PutEX
 
-	db.PutExString("hello", "world", 60)
+	db.XSetEx("hello", "world", 60)
 	time.Sleep(10 * time.Second)
-	t.Log(db.GetExString("hello"))
+	t.Log(db.XGet("hello"))
 	time.Sleep(20 * time.Second)
-	t.Log(db.TTLString("hello"))
+	t.Log(db.XTTL("hello"))
 	time.Sleep(31 * time.Second)
-	t.Log(db.GetEx([]byte("hello")))
-	t.Log(db.TTL([]byte("hello")))
+	t.Log(db.XGet("hello"))
+	t.Log(db.XTTL("hello"))
 
 }

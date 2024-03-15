@@ -37,7 +37,7 @@ func (l *LevelDB) Get(key []byte) ([]byte, error) {
 	return l.db.Get(key, nil)
 }
 
-func (l *LevelDB) GetString(key string) (string, error) {
+func (l *LevelDB) GetS(key string) (string, error) {
 	value, err := l.Get([]byte(key))
 	if err != nil {
 		return "", err
@@ -49,7 +49,7 @@ func (l *LevelDB) Put(key []byte, value []byte) error {
 	return l.db.Put(key, value, nil)
 }
 
-func (l *LevelDB) PutString(key string, value string) error {
+func (l *LevelDB) PutS(key string, value string) error {
 	return l.Put([]byte(key), []byte(value))
 }
 
@@ -57,7 +57,7 @@ func (l *LevelDB) Has(key []byte) (bool, error) {
 	return l.db.Has(key, nil)
 }
 
-func (l *LevelDB) HasString(key string) (bool, error) {
+func (l *LevelDB) HasS(key string) (bool, error) {
 	return l.Has([]byte(key))
 }
 
@@ -65,7 +65,7 @@ func (l *LevelDB) Delete(key []byte) error {
 	return l.db.Delete(key, nil)
 }
 
-func (l *LevelDB) DeleteString(key string) error {
+func (l *LevelDB) DeleteS(key string) error {
 	return l.Delete([]byte(key))
 }
 
@@ -90,9 +90,9 @@ type CacheType struct {
 	Expire  int64  `json:"expire"`
 }
 
-func (l *LevelDB) PutEx(key []byte, value []byte, expires int64) error {
+func (l *LevelDB) XSetEx(key string, value string, expires int64) error {
 	cache := CacheType{
-		Data:    value,
+		Data:    []byte(value),
 		Created: time.Now().Unix(),
 		Expire:  0,
 	}
@@ -106,55 +106,38 @@ func (l *LevelDB) PutEx(key []byte, value []byte, expires int64) error {
 		return err
 	}
 
-	return l.db.Put(key, jsonStr, nil)
+	return l.db.Put([]byte(key), jsonStr, nil)
 }
 
-func (l *LevelDB) PutExString(key string, value string, expires int64) error {
-	return l.PutEx([]byte(key), []byte(value), expires)
-}
+func (l *LevelDB) XGet(key string) (string, error) {
 
-func (l *LevelDB) GetEx(key []byte) ([]byte, error) {
-
-	data, err := l.db.Get(key, nil)
+	data, err := l.db.Get([]byte(key), nil)
 	if err != nil && !errors.Is(err, ldberrors.ErrNotFound) {
-		return nil, err
+		return "", err
 	}
 
 	if len(data) == 0 {
-		return nil, nil
+		return "", nil
 	}
 
 	var cache CacheType
 	err = json.Unmarshal(data, &cache)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	secs := time.Now().Unix()
 
 	if cache.Expire > 0 && cache.Expire <= secs {
-		err = l.Delete(key)
-		return nil, err
-	}
-
-	return cache.Data, nil
-}
-
-func (l *LevelDB) GetExString(key string) (string, error) {
-	value, err := l.GetEx([]byte(key))
-	if err != nil {
+		err = l.Delete([]byte(key))
 		return "", err
 	}
 
-	if value == nil {
-		return "", nil
-	}
-
-	return string(value), nil
+	return string(cache.Data), nil
 }
 
-func (l *LevelDB) TTL(key []byte) (int64, error) {
-	data, err := l.db.Get(key, nil)
+func (l *LevelDB) XTTL(key string) (int64, error) {
+	data, err := l.db.Get([]byte(key), nil)
 	if err != nil && !errors.Is(err, ldberrors.ErrNotFound) {
 		return -1, err
 	}
@@ -179,8 +162,4 @@ func (l *LevelDB) TTL(key []byte) (int64, error) {
 	}
 
 	return -1, nil
-}
-
-func (l *LevelDB) TTLString(key string) (int64, error) {
-	return l.TTL([]byte(key))
 }

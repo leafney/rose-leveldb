@@ -7,6 +7,7 @@ import (
 	ldberrors "github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
+	"strconv"
 	"time"
 )
 
@@ -110,8 +111,8 @@ func (l *LevelDB) XSetEx(key string, value string, expires int64) error {
 }
 
 func (l *LevelDB) XGet(key string) (string, error) {
-
-	data, err := l.db.Get([]byte(key), nil)
+	baseKey := []byte(key)
+	data, err := l.db.Get(baseKey, nil)
 	if err != nil && !errors.Is(err, ldberrors.ErrNotFound) {
 		return "", err
 	}
@@ -129,7 +130,7 @@ func (l *LevelDB) XGet(key string) (string, error) {
 	secs := time.Now().Unix()
 
 	if cache.Expire > 0 && cache.Expire <= secs {
-		err = l.Delete([]byte(key))
+		err = l.Delete(baseKey)
 		return "", err
 	}
 
@@ -162,4 +163,126 @@ func (l *LevelDB) XTTL(key string) (int64, error) {
 	}
 
 	return -1, nil
+}
+
+func (l *LevelDB) XExpire(key string, seconds int64) error {
+	baseKey := []byte(key)
+	data, err := l.db.Get(baseKey, nil)
+	if err != nil && !errors.Is(err, ldberrors.ErrNotFound) {
+		return err
+	}
+
+	if errors.Is(err, ldberrors.ErrNotFound) {
+		return nil
+	}
+
+	if len(data) == 0 {
+		return nil
+	}
+
+	var cache CacheType
+	err = json.Unmarshal(data, &cache)
+	if err != nil {
+		return err
+	}
+
+	cache.Expire = time.Now().Add(time.Duration(seconds) * time.Second).Unix()
+	jsonStr, err := json.Marshal(cache)
+	if err != nil {
+		return err
+	}
+
+	return l.db.Put(baseKey, jsonStr, nil)
+}
+
+func (l *LevelDB) XIncr(key string) (int64, error) {
+	return l.XIncrBy(key, 1)
+}
+
+func (l *LevelDB) XIncrBy(key string, increment int64) (int64, error) {
+	baseKey := []byte(key)
+	data, err := l.db.Get(baseKey, nil)
+	if err != nil && !errors.Is(err, ldberrors.ErrNotFound) {
+		return 0, err
+	}
+
+	var cache CacheType
+	var intValue int64
+	if errors.Is(err, ldberrors.ErrNotFound) {
+		intValue = 0
+		cache = CacheType{
+			Data:    []byte("0"),
+			Created: time.Now().Unix(),
+			Expire:  0,
+		}
+	} else {
+		err = json.Unmarshal(data, &cache)
+		if err != nil {
+			return 0, err
+		}
+		intValue, err = strconv.ParseInt(string(cache.Data), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	intValue += increment
+
+	cache.Data = []byte(strconv.FormatInt(intValue, 10))
+	jsonStr, err := json.Marshal(cache)
+	if err != nil {
+		return 0, err
+	}
+
+	err = l.db.Put(baseKey, jsonStr, nil)
+	if err != nil {
+		return 0, nil
+	}
+	return intValue, nil
+}
+
+func (l *LevelDB) XDecr(key string) (int64, error) {
+	return l.XDecrBy(key, 1)
+}
+
+func (l *LevelDB) XDecrBy(key string, decrement int64) (int64, error) {
+	baseKey := []byte(key)
+	data, err := l.db.Get(baseKey, nil)
+	if err != nil && !errors.Is(err, ldberrors.ErrNotFound) {
+		return 0, err
+	}
+
+	var cache CacheType
+	var intValue int64
+	if errors.Is(err, ldberrors.ErrNotFound) {
+		intValue = 0
+		cache = CacheType{
+			Data:    []byte("0"),
+			Created: time.Now().Unix(),
+			Expire:  0,
+		}
+	} else {
+		err = json.Unmarshal(data, &cache)
+		if err != nil {
+			return 0, err
+		}
+		intValue, err = strconv.ParseInt(string(cache.Data), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	intValue -= decrement
+
+	cache.Data = []byte(strconv.FormatInt(intValue, 10))
+	jsonStr, err := json.Marshal(cache)
+	if err != nil {
+		return 0, err
+	}
+
+	err = l.db.Put(baseKey, jsonStr, nil)
+	if err != nil {
+		return 0, nil
+	}
+	return intValue, nil
 }

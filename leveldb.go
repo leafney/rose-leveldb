@@ -46,28 +46,30 @@ func (l *LevelDB) GetS(key string) (string, error) {
 	return string(value), nil
 }
 
-func (l *LevelDB) Put(key []byte, value []byte) error {
+func (l *LevelDB) Set(key []byte, value []byte) error {
 	return l.db.Put(key, value, nil)
 }
 
-func (l *LevelDB) PutS(key string, value string) error {
-	return l.Put([]byte(key), []byte(value))
+func (l *LevelDB) SetS(key string, value string) error {
+	return l.Set([]byte(key), []byte(value))
 }
 
-func (l *LevelDB) Has(key []byte) (bool, error) {
+// Exists 检查给定的 key 是否存在
+func (l *LevelDB) Exists(key []byte) (bool, error) {
 	return l.db.Has(key, nil)
 }
 
-func (l *LevelDB) HasS(key string) (bool, error) {
-	return l.Has([]byte(key))
+// ExistsS 检查给定的 key 是否存在
+func (l *LevelDB) ExistsS(key string) (bool, error) {
+	return l.Exists([]byte(key))
 }
 
-func (l *LevelDB) Delete(key []byte) error {
+func (l *LevelDB) Del(key []byte) error {
 	return l.db.Delete(key, nil)
 }
 
-func (l *LevelDB) DeleteS(key string) error {
-	return l.Delete([]byte(key))
+func (l *LevelDB) DelS(key string) error {
+	return l.Del([]byte(key))
 }
 
 func (l *LevelDB) Close() error {
@@ -91,6 +93,7 @@ type CacheType struct {
 	Expire  int64  `json:"expire"`
 }
 
+// XSet 设置 key 的值
 func (l *LevelDB) XSet(key string, value string) error {
 	cache := CacheType{
 		Data:    []byte(value),
@@ -106,6 +109,7 @@ func (l *LevelDB) XSet(key string, value string) error {
 	return l.db.Put([]byte(key), jsonStr, nil)
 }
 
+// XSetEx 设置 key 的值，并设置 key 的过期时间，以秒计
 func (l *LevelDB) XSetEx(key string, value string, expires int64) error {
 	cache := CacheType{
 		Data:    []byte(value),
@@ -125,6 +129,7 @@ func (l *LevelDB) XSetEx(key string, value string, expires int64) error {
 	return l.db.Put([]byte(key), jsonStr, nil)
 }
 
+// XGet 获取指定 key 的值，如果 key 不存在时，返回空字符串
 func (l *LevelDB) XGet(key string) (string, error) {
 	baseKey := []byte(key)
 	data, err := l.db.Get(baseKey, nil)
@@ -145,13 +150,15 @@ func (l *LevelDB) XGet(key string) (string, error) {
 	secs := time.Now().Unix()
 
 	if cache.Expire > 0 && cache.Expire <= secs {
-		err = l.Delete(baseKey)
+		err = l.Del(baseKey)
 		return "", err
 	}
 
 	return string(cache.Data), nil
 }
 
+// XTTL 以秒为单位，返回指定 key 的剩余生存时间
+// 当 key 不存在，或者 key 没有设置剩余生存时间时，命令都返回 -1
 func (l *LevelDB) XTTL(key string) (int64, error) {
 	data, err := l.db.Get([]byte(key), nil)
 	if err != nil && !errors.Is(err, ldberrors.ErrNotFound) {
@@ -180,6 +187,7 @@ func (l *LevelDB) XTTL(key string) (int64, error) {
 	return -1, nil
 }
 
+// XExpire 为指定的 key 设置过期时间，以秒计
 func (l *LevelDB) XExpire(key string, seconds int64) error {
 	baseKey := []byte(key)
 	data, err := l.db.Get(baseKey, nil)
@@ -210,10 +218,12 @@ func (l *LevelDB) XExpire(key string, seconds int64) error {
 	return l.db.Put(baseKey, jsonStr, nil)
 }
 
+// XIncr 递增一
 func (l *LevelDB) XIncr(key string) (int64, error) {
 	return l.XIncrBy(key, 1)
 }
 
+// XIncrBy 增加给定的增量值
 func (l *LevelDB) XIncrBy(key string, increment int64) (int64, error) {
 	baseKey := []byte(key)
 	data, err := l.db.Get(baseKey, nil)
@@ -256,10 +266,12 @@ func (l *LevelDB) XIncrBy(key string, increment int64) (int64, error) {
 	return intValue, nil
 }
 
+// XDecr 递减一
 func (l *LevelDB) XDecr(key string) (int64, error) {
 	return l.XDecrBy(key, 1)
 }
 
+// XDecrBy 减去给定的减量值
 func (l *LevelDB) XDecrBy(key string, decrement int64) (int64, error) {
 	baseKey := []byte(key)
 	data, err := l.db.Get(baseKey, nil)

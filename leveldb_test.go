@@ -23,7 +23,7 @@ func TestNewLevelDB(t *testing.T) {
 
 		defer tx.Discard()
 
-		tx.Put([]byte(""), []byte(""), nil)
+		tx.Set([]byte(""), []byte(""), nil)
 
 		tx.Commit()
 
@@ -42,7 +42,7 @@ func TestNewLevelDB(t *testing.T) {
 	*/
 
 	//	Incr Decr
-	db.XSet("sunday", "5")
+	t.Log(db.XSet("sunday", "5"))
 	t.Log(db.XGet("sunday"))
 	t.Log(db.XExpire("sunday", 30))
 	time.Sleep(10 * time.Second)

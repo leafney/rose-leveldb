@@ -89,3 +89,36 @@ func TestLevelDB(t *testing.T) {
 		}
 	})
 }
+
+func TestNewLevelDB(t *testing.T) {
+	dbPath := "./testdb"
+	db, err := NewLevelDB(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		db.Close()
+		os.RemoveAll(dbPath)
+	}()
+
+	// db.XSetExSecS("aa", "1", 300)
+
+	// time.Sleep(50 * time.Second)
+	// b, _ := db.XTTL("aa")
+	// t.Log(b)
+
+	db.XSetS("cc","1")
+	db.XExpireSec("cc",10)
+	time.Sleep(8*time.Second)
+	dd1,_:= db.XGetS("cc")
+	t.Logf("dd1 %v",dd1)
+	time.Sleep(1*time.Second)
+	dd2,_:=db.XGetS("cc")
+	t.Logf("dd2 %v",dd2)
+	time.Sleep(1*time.Second)
+	dd3,_:=db.XGetS("cc")
+	t.Logf("dd3 %v",dd3)
+	time.Sleep(1*time.Second)
+	dd4,err4:=db.XGetS("cc")
+	t.Logf("dd4 %v err %v",dd4,err4)
+}
